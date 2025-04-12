@@ -1,0 +1,185 @@
+# LSTM voorbeeld op basis van keras (de meest eenvoudige library) 
+# Source: Hugo Gobato Souto LinkedIn: https://www.linkedin.com/in/hugo-gobato-souto-669b17161/
+# Referred in podcast: https://app.springcast.fm/podcast/de-iot-gesprekken
+#
+import numpy as np
+import tensorflow as tf
+from tensorflow import keras
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+
+# Generate synthetic time series data
+def generate_time_series(length, noise_level=0.1):
+time = np.arange(length)
+series = np.sin(time * 0.1) + np.random.randn(length) * noise_level
+return series
+
+series = generate_time_series(1000)
+
+# Prepare data for LSTM
+def prepare_data(series, n_steps):
+X, y = [], []
+for i in range(len(series) - n_steps):
+X.append(series[i:i + n_steps])
+y.append(series[i + n_steps])
+return np.array(X).reshape(-1, n_steps, 1), np.array(y)
+
+n_steps = 20 # Length of input sequences
+X, y = prepare_data(series, n_steps)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+
+# Hyperparameters (adjustable)
+lstm_units = 50
+dropout_rate = 0.2
+learning_rate = 0.001
+epochs = 20
+batch_size = 32
+
+# Build LSTM model
+model = keras.Sequential([
+keras.layers.LSTM(lstm_units, activation='relu', input_shape=(n_steps, 1), return_sequences=False),
+keras.layers.Dropout(dropout_rate),
+keras.layers.Dense(1)
+])
+
+model.compile(optimizer=keras.optimizers.Adam(learning_rate=learning_rate), loss='mse')
+
+# Train model
+history = model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_split=0.1, verbose=1)
+
+# Evaluate model
+loss = model.evaluate(X_test, y_test)
+print(f"Test Loss: {loss}")
+
+# Make predictions
+predictions = model.predict(X_test)
+
+# Plot results
+plt.figure(figsize=(12, 6))
+plt.plot(y_test, label='Actual')
+plt.plot(predictions, label='Predicted')
+plt.legend()
+plt.title("LSTM Forecasting with Keras")
+plt.show()
+
+# Plot training and validation loss
+plt.figure(figsize=(12, 6))
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.legend()
+plt.title("Training and Validation Loss")
+plt.show()
+
+#Example of changing Hyperparameters.
+#Try changing lstm_units, dropout_rate, learning_rate, epochs, and batch_size.
+#Increase or decrease them and see how the loss and the visualization of the predictions changes. 
+
+PyTorch:
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+
+# Generate synthetic time series data
+def generate_time_series(length, noise_level=0.1):
+time = np.arange(length)
+series = np.sin(time * 0.1) + np.random.randn(length) * noise_level
+return series
+
+series = generate_time_series(1000)
+
+# Prepare data for LSTM
+def prepare_data(series, n_steps):
+X, y = [], []
+for i in range(len(series) - n_steps):
+X.append(series[i:i + n_steps])
+y.append(series[i + n_steps])
+return np.array(X).reshape(-1, n_steps, 1), np.array(y)
+
+n_steps = 20 # Length of input sequences
+X, y = prepare_data(series, n_steps)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+
+# Convert to PyTorch tensors
+X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+y_train_tensor = torch.tensor(y_train, dtype=torch.float32)
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
+
+# Hyperparameters (adjustable)
+lstm_units = 50
+dropout_rate = 0.2
+learning_rate = 0.001
+epochs = 20
+batch_size = 32
+
+# Build LSTM model
+class LSTMModel(nn.Module):
+def __init__(self, input_size, hidden_size, dropout_rate):
+super(LSTMModel, self).__init__()
+self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+self.dropout = nn.Dropout(dropout_rate)
+self.fc = nn.Linear(hidden_size, 1)
+
+def forward(self, x):
+out, _ = self.lstm(x)
+out = self.dropout(out[:, -1, :])
+out = self.fc(out)
+return out
+
+model = LSTMModel(input_size=1, hidden_size=lstm_units, dropout_rate=dropout_rate)
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+# Train model
+train_losses = []
+val_losses = []
+for epoch in range(epochs):
+epoch_loss = 0
+model.train()
+for i in range(0, len(X_train_tensor), batch_size):
+inputs = X_train_tensor[i:i + batch_size]
+targets = y_train_tensor[i:i + batch_size]
+optimizer.zero_grad()
+outputs = model(inputs)
+loss = criterion(outputs.squeeze(), targets)
+loss.backward()
+optimizer.step()
+epoch_loss += loss.item() * inputs.size(0)
+train_losses.append(epoch_loss / len(X_train_tensor))
+
+model.eval()
+with torch.no_grad():
+val_output = model(X_train_tensor[int(len(X_train_tensor)*0.9):]).squeeze()
+val_target = y_train_tensor[int(len(y_train_tensor)*0.9):]
+val_loss = criterion(val_output, val_target)
+val_losses.append(val_loss.item())
+
+print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_losses[-1]}, Validation loss: {val_losses[-1]}")
+
+
+# Evaluate model
+model.eval()
+with torch.no_grad():
+predictions = model(X_test_tensor).squeeze().numpy()
+loss = criterion(model(X_test_tensor).squeeze(), y_test_tensor).item()
+print(f"Test Loss: {loss}")
+
+# Plot results
+plt.figure(figsize=(12, 6))
+plt.plot(y_test, label='Actual')
+plt.plot(predictions, label='Predicted')
+plt.legend()
+plt.title("LSTM Forecasting with PyTorch")
+plt.show()
+
+# Plot training and validation loss
+plt.figure(figsize=(12, 6))
+plt.plot(train_losses, label='Training Loss')
+plt.plot(val_losses, label='Validation Loss')
+plt.legend()
+plt.title("Training and Validation Loss")
+plt.show()
+
